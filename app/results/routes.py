@@ -23,6 +23,7 @@ class ReportDetail(BaseModel):
 
 class ReportSummary(BaseModel):
     id: int
+    query_id: int
     title: str
     question: str
     created_at: datetime
@@ -76,6 +77,7 @@ async def get_all_reports(
         query = db.query(Query).filter(Query.id == report.query_id).first()
         result.append(ReportSummary(
             id=report.id,
+            query_id=report.query_id,
             title=report.title,
             question=query.question if query else "",
             created_at=report.created_at

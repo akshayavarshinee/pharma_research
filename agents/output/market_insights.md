@@ -1,0 +1,1 @@
+The information on respiratory diseases with low competition and high patent burden in India is constrained by difficulties in retrieving specific drug data. The available data shows some authorised medicines, primarily focusing on certain active ingredients. A thorough investigation in-country could yield more precise insights.

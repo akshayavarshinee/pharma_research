@@ -1,0 +1,1 @@
+The market data, competitor analysis, and safety profile for amoxicillin and its uses have been compiled based on real data.

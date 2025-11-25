@@ -1,0 +1,591 @@
+market_insights_task:
+  description: >
+    Research "{query}" using ONLY real data from API tools. DO NOT generate placeholder or hypothetical data.
+
+    CRITICAL: Extract actual drug/disease names from the query and use them in tool calls.
+    DO NOT use placeholder text like "[drug name]" - use the real names from the user's query.
+
+    STEP 1 - Identify from query:
+    - Drug/product names mentioned
+    - Generic/active ingredient names
+    - Disease/condition mentioned
+
+    STEP 2 - Use tools with actual values:
+
+    Tool: fda_drugsfda_tool
+    - If brand name in query (e.g., "Ozempic"): brand_name="Ozempic"
+    - If generic in query (e.g., "semaglutide"): generic_name="semaglutide"
+    - Always include: fields=["products.brand_name", "products.indication", "sponsor_name", "products.marketing_status"]
+
+    Tool: fda_adverse_events_tool
+    - Use actual drug name: search_query='patient.drug.medicinalproduct:"ozempic"'
+    - Add: count="patient.reaction.reactionmeddrapt.exact", serious_only=True
+
+    Tool: ema_medicines_tool
+    - Use actual name: medicine_name="Ozempic" OR active_substance="semaglutide"
+
+    VALIDATION:
+    - If no data found, state "No data found for {query}"
+    - Cite source for all data
+    - NO fake data or placeholders
+
+  expected_output: >
+    Markdown tables with REAL API data only:
+
+    ## Market Data
+    [Table with actual data - cite source]
+
+    ## Competitor Analysis
+    [Table with real competitor data - cite source]
+
+    ## Safety Profile
+    [Table with adverse events - cite source]
+
+    Requirements:
+    - Every table must cite source
+    - If no data, state it explicitly
+    - Only factual data from tools
+
+  agent: market_insights_agent
+  output_file: output/market_insights.md
+
+exim_trade_analysis_task:
+  description: >
+    Retrieve export-import trade data for "{query}" using UN Comtrade API.
+
+    Use un_comtrade_exim_tool with:
+    - hs_code="3004" (medicaments) or "2941" (antibiotics) or "3002" (biologics)
+    - reporter_code="356" (India) or other country code
+    - year=2023
+    - flow_code="X" (exports), "M" (imports), or both
+
+    Use actual data from tool response (_summary section).
+
+  expected_output: >
+    ## Trade Volume Summary
+    - Total value: [from _summary.total_trade_value_usd]
+    - Top partners: [from _summary.top_partners]
+    - Source: UN Comtrade API
+
+    ## Country Analysis
+    [Table with partner countries and values from tool]
+
+  agent: exim_trends_agent
+  output_file: output/exim_trade_analysis.md
+
+patent_landscape_task:
+  description: >
+    Search patents for "{query}" using PatentsView API. DO NOT generate fake patent numbers.
+
+    CRITICAL: Extract keywords from query and use them in the search.
+    Example: If query is "COPD treatments", use keywords like "COPD", "respiratory", "pulmonary"
+
+    Use patentsview_api_tool with:
+    {
+      "query": {
+        "_text_any": {"patent_abstract": "actual keywords from query"}
+      },
+      "fields": ["patent_id", "patent_title", "patent_date", "assignees.assignee_organization"],
+      "sort": [{"patent_date": "desc"}],
+      "size": 50
+    }
+
+    ONLY use real patent IDs from API response.
+
+  expected_output: >
+    ## Active Patents
+    | Patent ID | Title | Date | Assignee |
+    [Real patents from API only]
+
+    Source: PatentsView API
+    Total found: [from _query_metadata]
+
+    ## FTO Risk Analysis
+    [Based on actual patent count and assignees]
+
+  agent: patent_landscape_agent
+  output_file: output/patent_landscape.md
+
+clinical_trials_pipeline_task:
+  description: >
+    Search ClinicalTrials.gov for "{query}". DO NOT generate fake NCT IDs.
+
+    CRITICAL: Extract condition/intervention from query.
+    Example: If query is "diabetes drugs", use condition="diabetes"
+
+    Use clinical_trials_api_tool with:
+    - condition: actual disease from query
+    - intervention: actual drug from query (if mentioned)
+    - status: ["RECRUITING", "ACTIVE_NOT_RECRUITING", "COMPLETED"]
+    - phase: ["PHASE2", "PHASE3", "PHASE4"]
+    - fields: ["NCTId", "BriefTitle", "OverallStatus", "Phase", "LeadSponsorName"]
+
+    ONLY use real NCT IDs from API.
+
+  expected_output: >
+    ## Active Trials
+    | NCT ID | Title | Status | Phase | Sponsor |
+    [Real trials from API only]
+
+    Source: ClinicalTrials.gov
+    Total found: [from _query_metadata]
+
+  agent: clinical_trials_agent
+  output_file: output/clinical_trials.md
+
+# internal_knowledge_summary_task:
+#   description: >
+#     Extract insights from internal documents for "{query}".
+#     If no documents provided, state that explicitly.
+
+#   expected_output: >
+#     IF documents provided: 5-10 key takeaways with source names
+#     IF NO documents: "No internal documents provided for analysis."
+
+#   agent: internal_knowledge_agent
+#   output_file: output/internal_knowledge.md
+
+web_intelligence_scan_task:
+  description: >
+    Web intelligence for "{query}" using REAL sources only.
+
+    CRITICAL: Extract keywords from query for searches.
+
+    Use ncbi_entrez_tool:
+    - database: "pubmed"
+    - search_term: actual keywords from query
+    - retmax: 20
+    - date_range: {"mindate": "2020/01/01"}
+
+    Use Search the internet with Serper:
+    - Query with actual disease/drug names from user query
+
+    All PMIDs and URLs must be real from tools.
+
+  expected_output: >
+    ## Scientific Literature
+    [Real PubMed articles with PMIDs and links]
+    Source: PubMed via NCBI Entrez
+
+    ## Web Sources
+    [Real URLs from Serper]
+    Source: Web search
+
+  agent: web_intelligence_agent
+  output_file: output/web_intelligence.md
+
+chembl_insights_task:
+  description: >
+    Research "{query}" using ChEMBL database. Extract REAL molecular and bioactivity data.
+
+    CRITICAL: Identify molecules, targets, or diseases from the query.
+
+    STEP 1 - Parse query for:
+    - Molecule names or ChEMBL IDs (e.g., "aspirin", "CHEMBL25")
+    - Target names (e.g., "EGFR", "kinase")
+    - Disease names (e.g., "cancer", "diabetes")
+    - Molecular properties (e.g., "MW < 500")
+
+    STEP 2 - Use chembl_api_tool:
+
+    For molecule search:
+    - resource='molecule', filters={'pref_name__contains': 'aspirin'}
+    - resource='molecule', chembl_id='CHEMBL25'
+    - resource='molecule', filters={'molecule_properties__mw_freebase__lte': 500}
+
+    For target search:
+    - resource='target', filters={'pref_name__contains': 'kinase'}
+    - resource='target', search_query='EGFR'
+
+    For drug search:
+    - resource='drug', chembl_id='CHEMBL25'
+    - resource='drug_indication', filters={'molecule_chembl_id': 'CHEMBL25'}
+
+    For chemical similarity:
+    - resource='similarity', smiles='CC(=O)Oc1ccccc1C(=O)O', similarity_cutoff=80
+
+    VALIDATION:
+    - Only use real ChEMBL IDs from API responses
+    - Cite ChEMBL as source
+    - If no data found, state it explicitly
+
+  expected_output: >
+    ## ChEMBL Molecular Data
+    [Table with molecule properties - cite ChEMBL]
+
+    ## Target Information
+    [Table with target data - cite ChEMBL]
+
+    ## Bioactivity Data
+    [Table with activity values - cite ChEMBL]
+
+    ## Drug Mechanisms
+    [Table with mechanisms - cite ChEMBL]
+
+    Requirements:
+    - All data from ChEMBL API
+    - Include ChEMBL IDs
+    - Cite source for all tables
+
+  agent: chembl_insights_agent
+  output_file: output/chembl_insights.md
+
+open_targets_research_task:
+  description: >
+    Research "{query}" using Open Targets Platform. Find target-disease associations and evidence.
+
+    CRITICAL: Extract target and disease identifiers from query.
+
+    STEP 1 - Identify from query:
+    - Gene symbols (e.g., "BRCA1", "EGFR") → Convert to Ensembl IDs
+    - Disease names (e.g., "rheumatoid arthritis") → Convert to EFO IDs
+    - Drug names for mechanism queries
+
+    STEP 2 - Use open_targets_graphql_tool:
+
+    For target validation:
+    - endpoint='target', entity_id='ENSG00000169083', query_type='tractability'
+    - endpoint='target', entity_id='ENSG00000169083', query_type='associated_diseases'
+    - endpoint='target', entity_id='ENSG00000169083', query_type='genetic_constraint'
+
+    For disease targets:
+    - endpoint='disease', entity_id='EFO_0000685', query_type='associated_targets'
+    - endpoint='disease', entity_id='EFO_0000685', query_type='known_drugs'
+
+    For drug mechanisms:
+    - endpoint='drug', entity_id='CHEMBL25', query_type='mechanisms'
+
+    For search:
+    - endpoint='search', search_query='breast cancer kinase'
+
+    VALIDATION:
+    - Use real Ensembl IDs and EFO IDs
+    - Include evidence scores
+    - Cite Open Targets Platform
+
+  expected_output: >
+    ## Target Validation
+    [Table with tractability scores - cite Open Targets]
+
+    ## Target-Disease Associations
+    [Table with evidence scores by data type - cite Open Targets]
+
+    ## Genetic Evidence
+    [Table with genetic constraint and GWAS data - cite Open Targets]
+
+    ## Known Drugs
+    [Table with drugs and mechanisms - cite Open Targets]
+
+    Requirements:
+    - All data from Open Targets API
+    - Include evidence scores (0-1)
+    - Cite source and evidence types
+
+  agent: open_targets_research_agent
+  output_file: output/open_targets_research.md
+
+open_targets_drug_indication_task:
+  description: >
+    Research drug indications for "{query}" using Open Targets drug indication data.
+
+    CRITICAL: Identify drug names or disease names from query.
+
+    STEP 1 - Parse query for:
+    - Drug names → Convert to ChEMBL IDs
+    - Disease names → Convert to EFO IDs
+    - Clinical phase requirements
+
+    STEP 2 - Use open_targets_drug_indication_tool:
+
+    For drug indications:
+    - drug_id='CHEMBL25'
+    - drug_id='CHEMBL25', approved_only=True
+    - drug_id='CHEMBL25', min_phase=3
+
+    For disease drugs:
+    - disease_id='EFO_0000685'
+    - disease_id='EFO_0000685', approved_only=True
+    - disease_id='EFO_0000685', min_phase=2
+
+    For specific drug-disease:
+    - drug_id='CHEMBL1201583', disease_id='EFO_0000685'
+
+    VALIDATION:
+    - Use real ChEMBL IDs and EFO IDs
+    - Include clinical phases (0-4)
+    - Cite Open Targets
+
+  expected_output: >
+    ## Drug Indications
+    [Table with diseases, phases, and references - cite Open Targets]
+
+    ## Clinical Development Status
+    [Summary of approved vs investigational - cite Open Targets]
+
+    ## Repurposing Opportunities
+    [Analysis of off-label potential - cite Open Targets]
+
+    Requirements:
+    - All data from Open Targets drug indication API
+    - Include clinical phases and references
+    - Distinguish approved (phase 4) from investigational
+
+  agent: open_targets_drug_indication_agent
+  output_file: output/drug_indications.md
+
+generate_report_title_task:
+  description: >
+    Create a professional, compelling report title based on the research query: "{query}"
+
+    The title should:
+    - Be concise (10-15 words maximum)
+    - Clearly indicate the research focus
+    - Include key terms from the query
+    - Sound professional and authoritative
+    - Avoid generic phrases like "Analysis of" or "Study on"
+
+    Examples of good titles:
+    - "Ozempic Market Landscape: Competitive Intelligence and Trade Dynamics 2024"
+    - "COPD Treatment Pipeline: Patent Analysis and Clinical Trial Insights"
+    - "Rheumatoid Arthritis Therapeutics: Target Validation and Drug Repurposing Opportunities"
+
+  expected_output: >
+    A single, professional report title (no additional text or explanation)
+
+  agent: report_title_generator_agent
+  output_file: output/report_title.txt
+
+generate_report_abstract_task:
+  description: >
+    Create an executive summary/abstract for the research on "{query}"
+
+    Review ALL research outputs and synthesize into 2-3 concise paragraphs that:
+    - Highlight the most critical findings with specific data points
+    - Quantify key metrics (e.g., "15 active patents", "Phase 3 trial with 500 patients")
+    - Present strategic implications
+    - Cite specific sources
+    - Focus on actionable insights
+
+    DO NOT:
+    - Write generic summaries
+    - List section names
+    - Use vague language
+    - Omit data citations
+
+  expected_output: >
+    ## Executive Summary
+
+    [2-3 paragraphs synthesizing key findings with specific numbers and citations]
+
+    Key Highlights:
+    - [Bullet point with specific data]
+    - [Bullet point with specific data]
+    - [Bullet point with specific data]
+
+  agent: report_abstract_generator_agent
+  output_file: output/report_abstract.md
+  context:
+    - market_insights_task
+    - exim_trade_analysis_task
+    - patent_landscape_task
+    - clinical_trials_pipeline_task
+    - web_intelligence_scan_task
+    - chembl_insights_task
+    - open_targets_research_task
+    - open_targets_drug_indication_task
+
+generate_report_body_task:
+  description: >
+    Write comprehensive report body sections for "{query}"
+
+    Combine and synthesize ALL research outputs into well-structured sections:
+
+    1. Introduction (1-2 paragraphs setting context)
+    2. Molecular and Target Analysis (from ChEMBL and Open Targets)
+    3. Market and Regulatory Landscape (from FDA/EMA tools)
+    4. Clinical Development Pipeline (from clinical trials and drug indications)
+    5. Patent and IP Landscape (from patent data)
+    6. Trade and Supply Chain Analysis (from EXIM data)
+    7. Scientific Literature Review (from PubMed/web intelligence)
+    8. Strategic Recommendations
+
+    Each section should:
+    - Have clear headings and subheadings
+    - Include all relevant tables and data
+    - Provide analytical narrative connecting the data
+    - Cite sources for all claims
+    - Use professional, clear language
+
+  expected_output: >
+    # [Section Title]
+
+    [Well-structured content with headings, tables, analysis, and citations]
+
+    ## [Subsection]
+
+    [Narrative analysis with data points and insights]
+
+  agent: report_body_writer_agent
+  output_file: output/report_body.md
+  context:
+    - market_insights_task
+    - exim_trade_analysis_task
+    - patent_landscape_task
+    - clinical_trials_pipeline_task
+    - web_intelligence_scan_task
+    - chembl_insights_task
+    - open_targets_research_task
+    - open_targets_drug_indication_task
+
+generate_visualizations_task:
+  description: >
+    Analyze ALL research data and create appropriate charts:
+
+    1. Market data → Bar charts of competitor market share, adverse events
+    2. Trade data → Line graphs of import/export trends, pie charts of top partners
+    3. Patent data → Timeline of patent filings, bar chart by assignee
+    4. Clinical trials → Phase distribution bar chart, status pie chart
+    5. Target-disease associations → Heatmap of evidence scores
+    6. Drug indications → Bar chart of clinical phases
+
+    For each visualization:
+    - Write Python code using matplotlib/seaborn
+    - Include proper labels, titles, legends
+    - Use professional color schemes
+    - Save as PNG files with descriptive names
+    - Generate code that can be executed
+
+    Example code structure:
+    ```python
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    import pandas as pd
+
+    # Prepare data
+    data = pd.DataFrame(...)
+
+    # Create visualization
+    plt.figure(figsize=(10, 6))
+    sns.barplot(data=data, x='category', y='value')
+    plt.title('Professional Title')
+    plt.xlabel('X Label')
+    plt.ylabel('Y Label')
+    plt.tight_layout()
+    plt.savefig('output/chart_name.png', dpi=300)
+    plt.close()
+    ```
+
+  expected_output: >
+    ## Visualizations Generated
+
+    ### 1. [Chart Name]
+    ```python
+    [Python code to generate chart]
+    ```
+    Saved to: output/[filename].png
+
+    ### 2. [Chart Name]
+    ```python
+    [Python code to generate chart]
+    ```
+    Saved to: output/[filename].png
+
+    [Continue for all charts...]
+
+    ## Visualization Summary
+    - Total charts created: [number]
+    - Chart types: [list types]
+    - Files saved to: output/ directory
+
+  agent: visualization_agent
+  output_file: output/visualizations.md
+  context:
+    - market_insights_task
+    - exim_trade_analysis_task
+    - patent_landscape_task
+    - clinical_trials_pipeline_task
+    - web_intelligence_scan_task
+    - chembl_insights_task
+    - open_targets_research_task
+    - open_targets_drug_indication_task
+
+generate_final_report_task:
+  description: >
+    Create comprehensive final report by COPYING content from all task outputs.
+
+    DO NOT just list section names - include ACTUAL CONTENT from each file.
+
+    Structure:
+    1. Title page with report name and date
+    2. Executive Summary (synthesize TOP findings from all sections - 2-3 paragraphs)
+    3. COPY FULL content from market_insights.md
+    4. COPY FULL content from exim_trade_analysis.md
+    5. COPY FULL content from patent_landscape.md
+    6. COPY FULL content from clinical_trials.md
+    7. COPY FULL content from internal_knowledge.md
+    8. COPY FULL content from web_intelligence.md
+    9. Strategic Recommendations (based on data above)
+    10. Data sources summary table
+
+    CRITICAL: Include ALL tables, data, and citations. This is a REAL report, not metadata.
+
+  expected_output: >
+    # [Report Title Based on Query]
+
+    **Date**: 2024
+    **Generated by**: Pharma Research Intelligence System
+
+    ## Executive Summary
+
+    [Synthesize key findings - 3-5 bullet points with data citations]
+
+    ## 1. Market Intelligence
+
+    [FULL content from market_insights.md - preserve ALL tables]
+
+    ## 2. Trade Analysis
+
+    [FULL content from exim_trade_analysis.md - preserve ALL tables]
+
+    ## 3. Patent Landscape
+
+    [FULL content from patent_landscape.md - preserve ALL tables]
+
+    ## 4. Clinical Trials
+
+    [FULL content from clinical_trials.md - preserve ALL tables]
+
+    ## 5. Internal Knowledge
+
+    [FULL content from internal_knowledge.md]
+
+    ## 6. Web Intelligence
+
+    [FULL content from web_intelligence.md - preserve ALL links]
+
+    ## Strategic Recommendations
+
+    ### Market Opportunities
+    [Based on market + clinical data]
+
+    ### Patent Strategy
+    [Based on patent data]
+
+    ### R&D Focus
+    [Based on clinical trials]
+
+  agent: report_generation_agent
+  output_file: output/final_report.md
+  context:
+    - market_insights_task
+    - exim_trade_analysis_task
+    - patent_landscape_task
+    - clinical_trials_pipeline_task
+    - web_intelligence_scan_task
+    - chembl_insights_task
+    - open_targets_research_task
+    - open_targets_drug_indication_task
+    - generate_report_title_task
+    - generate_report_abstract_task
+    - generate_report_body_task
+    - generate_visualizations_task

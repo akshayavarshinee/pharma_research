@@ -1,14 +1,19 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 from datetime import datetime
 from app.database import get_db
 from app.auth.routes import get_current_user
 from app.users.models import User
 from app.queries.models import Query
 from app.results.models import Report
+from app.services.agent_service import validate_query, AgentExecutionError
+from app.services.background_tasks import process_query_with_agents
+import logging
 import random
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -109,36 +114,84 @@ Binding affinity scores indicate strong target engagement with IC50 values in th
 @router.post("/submit", response_model=QueryResponse)
 async def submit_query(
     query_data: QueryCreate,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
     Submit a pharmaceutical research query.
-    Creates a query record and generates a dummy report.
+    Creates a query record and starts agent processing in the background.
     """
+    # Validate query
+    if not validate_query(query_data.question):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid query. Please provide a meaningful research question (10-1000 characters)."
+        )
+    
+    logger.info(f"User {current_user.id} submitted query: {query_data.question[:100]}...")
+    
+    # Create query record with pending status
     new_query = Query(
         user_id=current_user.id,
-        question=query_data.question
+        question=query_data.question,
+        status="pending"
     )
     
     db.add(new_query)
     db.commit()
     db.refresh(new_query)
     
-    title, report_text = generate_dummy_report(query_data.question)
-    
-    new_report = Report(
+    # Start background task to process with agents
+    background_tasks.add_task(
+        process_query_with_agents,
         query_id=new_query.id,
-        user_id=current_user.id,
-        title=title,
-        report_text=report_text
+        query_text=query_data.question,
+        user_id=current_user.id
     )
     
-    db.add(new_report)
-    db.commit()
-    db.refresh(new_report)
+    logger.info(f"Query {new_query.id} created, background processing started")
     
     return QueryResponse(
-        report_id=new_report.id,
-        message="Report generated successfully"
+        report_id=new_query.id,  # Return query ID for status checking
+        message="Query submitted successfully. Processing with AI agents..."
     )
+
+@router.get("/status/{query_id}")
+async def get_query_status(
+    query_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Check the status of a query.
+    Returns the current processing status and report if completed.
+    """
+    query = db.query(Query).filter(
+        Query.id == query_id,
+        Query.user_id == current_user.id
+    ).first()
+    
+    if not query:
+        raise HTTPException(status_code=404, detail="Query not found")
+    
+    response = {
+        "query_id": query.id,
+        "status": query.status,
+        "question": query.question,
+        "created_at": query.created_at,
+        "started_at": query.started_at,
+        "completed_at": query.completed_at
+    }
+    
+    # If completed, include report ID
+    if query.status == "completed" and query.report:
+        response["report_id"] = query.report.id
+        response["title"] = query.report.title
+    
+    # If failed, include error message
+    if query.status == "failed":
+        response["error_message"] = query.error_message
+    
+    return response
+
