@@ -17,11 +17,6 @@ from .tools.EXIMTool import EXIMTool
 from .tools.ChEMBLTool import ChEMBLTool
 from .tools.OpenTargetsTool import OpenTargetsTool
 from .tools.OpenTargetsDrugIndicationTool import OpenTargetsDrugIndicationTool
-# TODO: Create these tools
-# from .tools.ReportTitleGeneratorTool import ReportTitleGeneratorTool
-# from .tools.ReportAbstractGeneratorTool import ReportAbstractGeneratorTool
-# from .tools.ReportBodyWriterTool import ReportBodyWriterTool
-# from .tools.VisualizationTool import VisualizationTool
 
 
 @CrewBase
@@ -61,10 +56,6 @@ class PharmaResearcher():
             verbose = True, 
             tools=[ClinicalTrialsTool(), SerperDevTool()])
     
-    # @agent
-    # def internal_knowledge_agent(self) -> Agent:
-    #     return Agent(config=self.agents_config['internal_knowledge_agent'], verbose = True)
-    
     @agent
     def web_intelligence_agent(self) -> Agent:
         return Agent(
@@ -115,14 +106,12 @@ class PharmaResearcher():
     def visualization_agent(self) -> Agent:
         return Agent(
             config=self.agents_config['visualization_agent'],
-            # tools=[CodeInterpreterTool()],
             verbose=True)
     
     @agent
     def report_generation_agent(self) -> Agent:
         return Agent(
             config=self.agents_config['report_generation_agent'],
-            # tools=[CodeInterpreterTool()],
             verbose = True)
     
 
@@ -132,42 +121,30 @@ class PharmaResearcher():
     def market_insights_task(self) -> Task:
         return Task(
             config=self.tasks_config['market_insights_task'], # type: ignore[index]
-            # output_pydantic=schemas.IQVIAInsightsOutput
         )
     
     @task
     def exim_trade_analysis_task(self) -> Task:
         return Task(
             config=self.tasks_config['exim_trade_analysis_task'], # type: ignore[index]
-            # output_pydantic=schemas.EXIMTrendsOutput
         )
     
     @task
     def patent_landscape_task(self) -> Task:
         return Task(
             config=self.tasks_config['patent_landscape_task'], # type: ignore[index]
-            # output_pydantic=schemas.PatentLandscapeOutput
         )
     
     @task
     def clinical_trials_pipeline_task(self) -> Task:
         return Task(
             config=self.tasks_config['clinical_trials_pipeline_task'], # type: ignore[index]
-            # output_pydantic=schemas.ClinicalTrialsOutput
         )
-    
-    # @task
-    # def internal_knowledge_summary_task(self) -> Task:
-    #     return Task(
-    #         config=self.tasks_config['internal_knowledge_summary_task'], # type: ignore[index]
-    #         # output_pydantic=schemas.InternalKnowledgeOutput
-    #     )
     
     @task
     def web_intelligence_scan_task(self) -> Task:
         return Task(
             config=self.tasks_config['web_intelligence_scan_task'], # type: ignore[index]
-            # output_pydantic=schemas.WebIntelligenceOutput
         )
     
     @task
@@ -216,230 +193,17 @@ class PharmaResearcher():
     def generate_final_report_task(self) -> Task:
         return Task(
             config=self.tasks_config['generate_final_report_task'], # type: ignore[index]
-            # output_pydantic=schemas.ReportOutput
         )
-    
-    # @task
-    # def interpret_user_query(self) -> Task:
-    #     return Task(config=self.tasks_config["interpret_user_query"])
 
 
     @crew
     def crew(self) -> Crew:
         """Creates the PharmaResearcher crew"""
         
-        # Master agent has NO tools - this forces it to delegate to specialist agents
-        # instead of trying to execute research tasks itself
-        # master_agent = Agent(
-        #     config=self.agents_config['master_agent'],
-        #     allow_delegation = True,
-        #     llm=self.agents_config["master_agent"]["llm"],
-        #     tools = []  # Empty tools list ensures delegation to specialists
-        # )
-
-        return Agent(
-            config=self.agents_config['exim_trends_agent'], 
-            verbose = True, 
-            tools=[EXIMTool(), SerperDevTool()])
-    
-    @agent
-    def patent_landscape_agent(self) -> Agent:
-        return Agent(
-            config=self.agents_config['patent_landscape_agent'], 
-            verbose = True, 
-            tools=[PatentsViewTool(), SerperDevTool()])
-    
-    @agent
-    def clinical_trials_agent(self) -> Agent:
-        return Agent(
-            config=self.agents_config['clinical_trials_agent'], 
-            verbose = True, 
-            tools=[ClinicalTrialsTool(), SerperDevTool()])
-    
-    # @agent
-    # def internal_knowledge_agent(self) -> Agent:
-    #     return Agent(config=self.agents_config['internal_knowledge_agent'], verbose = True)
-    
-    @agent
-    def web_intelligence_agent(self) -> Agent:
-        return Agent(
-            config=self.agents_config['web_intelligence_agent'], 
-            verbose = True, 
-            tools=[SerperDevTool(), NCBIEntrezTool()])
-    
-    @agent
-    def chembl_insights_agent(self) -> Agent:
-        return Agent(
-            config=self.agents_config['chembl_insights_agent'],
-            verbose=True,
-            tools=[ChEMBLTool(), SerperDevTool()])
-    
-    @agent
-    def open_targets_research_agent(self) -> Agent:
-        return Agent(
-            config=self.agents_config['open_targets_research_agent'],
-            verbose=True,
-            tools=[OpenTargetsTool(), SerperDevTool()])
-    
-    @agent
-    def open_targets_drug_indication_agent(self) -> Agent:
-        return Agent(
-            config=self.agents_config['open_targets_drug_indication_agent'],
-            verbose=True,
-            tools=[OpenTargetsDrugIndicationTool(), SerperDevTool()])
-    
-    @agent
-    def report_title_generator_agent(self) -> Agent:
-        return Agent(
-            config=self.agents_config['report_title_generator_agent'],
-            verbose=True)
-    
-    @agent
-    def report_abstract_generator_agent(self) -> Agent:
-        return Agent(
-            config=self.agents_config['report_abstract_generator_agent'],
-            verbose=True)
-    
-    @agent
-    def report_body_writer_agent(self) -> Agent:
-        return Agent(
-            config=self.agents_config['report_body_writer_agent'],
-            verbose=True)
-    
-    @agent
-    def visualization_agent(self) -> Agent:
-        return Agent(
-            config=self.agents_config['visualization_agent'],
-            # tools=[CodeInterpreterTool()],
-            verbose=True)
-    
-    @agent
-    def report_generation_agent(self) -> Agent:
-        return Agent(
-            config=self.agents_config['report_generation_agent'],
-            # tools=[CodeInterpreterTool()],
-            verbose = True)
-    
-
-    # ---- TASKS ----
-
-    @task
-    def market_insights_task(self) -> Task:
-        return Task(
-            config=self.tasks_config['market_insights_task'], # type: ignore[index]
-            # output_pydantic=schemas.IQVIAInsightsOutput
-        )
-    
-    @task
-    def exim_trade_analysis_task(self) -> Task:
-        return Task(
-            config=self.tasks_config['exim_trade_analysis_task'], # type: ignore[index]
-            # output_pydantic=schemas.EXIMTrendsOutput
-        )
-    
-    @task
-    def patent_landscape_task(self) -> Task:
-        return Task(
-            config=self.tasks_config['patent_landscape_task'], # type: ignore[index]
-            # output_pydantic=schemas.PatentLandscapeOutput
-        )
-    
-    @task
-    def clinical_trials_pipeline_task(self) -> Task:
-        return Task(
-            config=self.tasks_config['clinical_trials_pipeline_task'], # type: ignore[index]
-            # output_pydantic=schemas.ClinicalTrialsOutput
-        )
-    
-    # @task
-    # def internal_knowledge_summary_task(self) -> Task:
-    #     return Task(
-    #         config=self.tasks_config['internal_knowledge_summary_task'], # type: ignore[index]
-    #         # output_pydantic=schemas.InternalKnowledgeOutput
-    #     )
-    
-    @task
-    def web_intelligence_scan_task(self) -> Task:
-        return Task(
-            config=self.tasks_config['web_intelligence_scan_task'], # type: ignore[index]
-            # output_pydantic=schemas.WebIntelligenceOutput
-        )
-    
-    @task
-    def chembl_insights_task(self) -> Task:
-        return Task(
-            config=self.tasks_config['chembl_insights_task'] # type: ignore[index]
-        )
-    
-    @task
-    def open_targets_research_task(self) -> Task:
-        return Task(
-            config=self.tasks_config['open_targets_research_task'] # type: ignore[index]
-        )
-    
-    @task
-    def open_targets_drug_indication_task(self) -> Task:
-        return Task(
-            config=self.tasks_config['open_targets_drug_indication_task'] # type: ignore[index]
-        )
-    
-    @task
-    def generate_report_title_task(self) -> Task:
-        return Task(
-            config=self.tasks_config['generate_report_title_task'] # type: ignore[index]
-        )
-    
-    @task
-    def generate_report_abstract_task(self) -> Task:
-        return Task(
-            config=self.tasks_config['generate_report_abstract_task'] # type: ignore[index]
-        )
-    
-    @task
-    def generate_report_body_task(self) -> Task:
-        return Task(
-            config=self.tasks_config['generate_report_body_task'] # type: ignore[index]
-        )
-    
-    @task
-    def generate_visualizations_task(self) -> Task:
-        return Task(
-            config=self.tasks_config['generate_visualizations_task'] # type: ignore[index]
-        )
-    
-    @task
-    def generate_final_report_task(self) -> Task:
-        return Task(
-            config=self.tasks_config['generate_final_report_task'], # type: ignore[index]
-            # output_pydantic=schemas.ReportOutput
-        )
-    
-    # @task
-    # def interpret_user_query(self) -> Task:
-    #     return Task(config=self.tasks_config["interpret_user_query"])
-
-
-    @crew
-    def crew(self) -> Crew:
-        """Creates the PharmaResearcher crew"""
-        
-        # Master agent has NO tools - this forces it to delegate to specialist agents
-        # instead of trying to execute research tasks itself
-        # master_agent = Agent(
-        #     config=self.agents_config['master_agent'],
-        #     allow_delegation = True,
-        #     llm=self.agents_config["master_agent"]["llm"],
-        #     tools = []  # Empty tools list ensures delegation to specialists
-        # )
-
         return Crew(
             agents=self.agents,
             tasks=self.tasks,
-            # process=Process.hierarchical,
             process=Process.sequential,
-            # manager_llm = "gpt-4o-mini",
-            # planning="true",  # Disabled to avoid excessive summarization
-            # planning_llm = "gpt-4o-mini",
             max_retry_limit=2,  # Prevent infinite retry loops
             verbose=True
         )
